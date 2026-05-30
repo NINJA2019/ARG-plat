@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useCards } from '../hooks/useCards'
 import { useCardLinks } from '../hooks/useCardLinks'
-import { useParticipant } from '../hooks/useParticipant'
 import { CorkBoard } from '../components/CorkBoard'
 import { CardView } from '../components/CardView'
 import { TimelineView } from '../components/TimelineView'
@@ -17,7 +16,9 @@ type ViewMode = 'cork' | 'card' | 'timeline'
 export function InvestigationBoard() {
   const { scenarioId } = useParams<{ scenarioId: string }>()
   const navigate = useNavigate()
-  const { name: participantName, joined } = useParticipant(scenarioId!)
+  const location = useLocation()
+  const participantName = (location.state as { participantName?: string })?.participantName ?? null
+
   const { cards, create, update, updateStatus, updatePosition, remove } = useCards(scenarioId!)
   const { links, create: createLink, remove: removeLink } = useCardLinks(scenarioId!)
 
@@ -29,10 +30,10 @@ export function InvestigationBoard() {
   const [commentCardId, setCommentCardId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!joined) {
+    if (!participantName) {
       navigate(`/${scenarioId}/join`, { replace: true })
     }
-  }, [joined, navigate, scenarioId])
+  }, [participantName, navigate, scenarioId])
 
   useEffect(() => {
     supabase
@@ -64,7 +65,6 @@ export function InvestigationBoard() {
   const handleDelete = async () => {
     if (!selectedCard) return
     if (!confirm('このカードを削除しますか？')) return
-    // Remove related links
     const relatedLinks = links.filter(
       l => l.card_a === selectedCard.id || l.card_b === selectedCard.id,
     )
@@ -89,7 +89,7 @@ export function InvestigationBoard() {
     )
   }
 
-  if (!joined) return null
+  if (!participantName) return null
 
   const viewTabs: { mode: ViewMode; label: string }[] = [
     { mode: 'cork', label: 'コルクボード' },
@@ -99,7 +99,6 @@ export function InvestigationBoard() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="bg-gray-900 border-b border-gray-800 px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -125,7 +124,6 @@ export function InvestigationBoard() {
         </div>
       </header>
 
-      {/* View tabs */}
       <div className="bg-gray-900 border-b border-gray-800 px-4">
         <div className="max-w-7xl mx-auto flex gap-1">
           {viewTabs.map(tab => (
@@ -144,7 +142,6 @@ export function InvestigationBoard() {
         </div>
       </div>
 
-      {/* Main content */}
       <main className="flex-1 p-4">
         <div className="max-w-7xl mx-auto">
           {viewMode === 'cork' && (
@@ -163,11 +160,10 @@ export function InvestigationBoard() {
         </div>
       </main>
 
-      {/* Card detail modal */}
       {selectedCard && !editingCard && (
         <CardDetail
           card={selectedCard}
-          participantName={participantName!}
+          participantName={participantName}
           onEdit={() => setEditingCard(selectedCard)}
           onDelete={handleDelete}
           onStatusChange={handleStatusChange}
@@ -176,7 +172,6 @@ export function InvestigationBoard() {
         />
       )}
 
-      {/* Card form modal (create) */}
       {showForm && (
         <CardForm
           scenarioId={scenarioId!}
@@ -185,7 +180,6 @@ export function InvestigationBoard() {
         />
       )}
 
-      {/* Card form modal (edit) */}
       {editingCard && (
         <CardForm
           scenarioId={scenarioId!}
@@ -195,12 +189,11 @@ export function InvestigationBoard() {
         />
       )}
 
-      {/* Comment drawer */}
       {commentCardId && (
         <CommentDrawer
           cardId={commentCardId}
           cardTitle={cards.find(c => c.id === commentCardId)?.title ?? ''}
-          participantName={participantName!}
+          participantName={participantName}
           onClose={() => setCommentCardId(null)}
         />
       )}
