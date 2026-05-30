@@ -1,15 +1,41 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+
+const SESSION_KEY = 'arg-session-token'
 
 export function JoinPage() {
   const { scenarioId } = useParams<{ scenarioId: string }>()
   const navigate = useNavigate()
   const [name, setName] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    navigate(`/${scenarioId}`, { replace: true, state: { participantName: name.trim() } })
+
+    setSubmitting(true)
+    setError('')
+
+    const sessionToken = crypto.randomUUID()
+
+    const { error: dbError } = await supabase
+      .from('participants')
+      .insert({
+        scenario_id: scenarioId,
+        name: name.trim(),
+        session_token: sessionToken,
+      })
+
+    if (dbError) {
+      setError('参加に失敗しました。もう一度お試しください。')
+      setSubmitting(false)
+      return
+    }
+
+    sessionStorage.setItem(SESSION_KEY, sessionToken)
+    navigate(`/${scenarioId}`, { replace: true })
   }
 
   return (
@@ -30,11 +56,13 @@ export function JoinPage() {
           autoFocus
           required
         />
+        {error && <p className="text-sm text-red-400">{error}</p>}
         <button
           type="submit"
-          className="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded font-medium transition-colors"
+          disabled={submitting}
+          className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded font-medium transition-colors"
         >
-          参加する
+          {submitting ? '参加中...' : '参加する'}
         </button>
       </form>
     </div>

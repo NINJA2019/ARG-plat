@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useCards } from '../hooks/useCards'
 import { useCardLinks } from '../hooks/useCardLinks'
@@ -13,15 +13,17 @@ import type { Card, CardStatus, Scenario } from '../types'
 
 type ViewMode = 'cork' | 'card' | 'timeline'
 
+const SESSION_KEY = 'arg-session-token'
+
 export function InvestigationBoard() {
   const { scenarioId } = useParams<{ scenarioId: string }>()
   const navigate = useNavigate()
-  const location = useLocation()
-  const participantName = (location.state as { participantName?: string })?.participantName ?? null
 
   const { cards, create, update, updateStatus, updatePosition, remove } = useCards(scenarioId!)
   const { links, create: createLink, remove: removeLink } = useCardLinks(scenarioId!)
 
+  const [participantName, setParticipantName] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const [scenario, setScenario] = useState<Scenario | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('cork')
   const [selectedCard, setSelectedCard] = useState<Card | null>(null)
@@ -30,10 +32,27 @@ export function InvestigationBoard() {
   const [commentCardId, setCommentCardId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!participantName) {
+    const token = sessionStorage.getItem(SESSION_KEY)
+    if (!token) {
       navigate(`/${scenarioId}/join`, { replace: true })
+      return
     }
-  }, [participantName, navigate, scenarioId])
+
+    supabase
+      .from('participants')
+      .select('name')
+      .eq('session_token', token)
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) {
+          sessionStorage.removeItem(SESSION_KEY)
+          navigate(`/${scenarioId}/join`, { replace: true })
+        } else {
+          setParticipantName(data.name)
+          setLoading(false)
+        }
+      })
+  }, [scenarioId, navigate])
 
   useEffect(() => {
     supabase
@@ -89,7 +108,7 @@ export function InvestigationBoard() {
     )
   }
 
-  if (!participantName) return null
+  if (loading || !participantName) return null
 
   const viewTabs: { mode: ViewMode; label: string }[] = [
     { mode: 'cork', label: 'コルクボード' },
