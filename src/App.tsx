@@ -8,8 +8,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<ScenarioList />} />
-        <Route path="/:scenarioId" element={<InvestigationBoard />} />
         <Route path="/:scenarioId/join" element={<JoinPage />} />
+        <Route path="/:scenarioId" element={<InvestigationBoard />} />
       </Routes>
     </BrowserRouter>
   )

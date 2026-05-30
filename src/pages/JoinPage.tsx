@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useParticipant } from '../hooks/useParticipant'
 
@@ -8,10 +8,13 @@ export function JoinPage() {
   const { joined, join } = useParticipant(scenarioId!)
   const [name, setName] = useState('')
 
-  if (joined) {
-    navigate(`/${scenarioId}`, { replace: true })
-    return null
-  }
+  useEffect(() => {
+    if (joined) {
+      navigate(`/${scenarioId}`, { replace: true })
+    }
+  }, [joined, navigate, scenarioId])
+
+  if (joined) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
