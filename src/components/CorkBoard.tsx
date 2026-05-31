@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import type { Card, CardLink, CardStatus } from '../types'
 
 interface Props {
@@ -72,16 +72,22 @@ export function CorkBoard({ cards, links, onCardClick, onPositionUpdate, onLinkC
     setDragging(null)
   }
 
-  const focusedLinks = focusedId
-    ? links.filter(l => l.card_a === focusedId || l.card_b === focusedId)
-    : null
+  const focusedLinks = useMemo(
+    () => focusedId
+      ? links.filter(l => l.card_a === focusedId || l.card_b === focusedId)
+      : null,
+    [focusedId, links],
+  )
 
-  const connectedCardIds = focusedLinks
-    ? new Set([
-        focusedId!,
-        ...focusedLinks.map(l => (l.card_a === focusedId ? l.card_b : l.card_a)),
-      ])
-    : null
+  const connectedCardIds = useMemo(
+    () => focusedLinks
+      ? new Set([
+          focusedId!,
+          ...focusedLinks.map(l => (l.card_a === focusedId ? l.card_b : l.card_a)),
+        ])
+      : null,
+    [focusedId, focusedLinks],
+  )
 
   // Close focus on Escape
   useEffect(() => {

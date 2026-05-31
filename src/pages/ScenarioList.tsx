@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useScenarios } from '../hooks/useScenarios'
 import { CreateScenarioModal } from '../components/CreateScenarioModal'
@@ -7,8 +7,8 @@ export function ScenarioList() {
   const { scenarios, loading, create, archive, restore } = useScenarios()
   const [showCreate, setShowCreate] = useState(false)
 
-  const active = scenarios.filter(s => s.status === 'active')
-  const archived = scenarios.filter(s => s.status === 'archived')
+  const active = useMemo(() => scenarios.filter(s => s.status === 'active'), [scenarios])
+  const archived = useMemo(() => scenarios.filter(s => s.status === 'archived'), [scenarios])
 
   const handleCreate = async (name: string, description: string) => {
     await create(name, description)

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { showToast } from '../lib/toast'
 import type { Card, CardStatus } from '../types'
 
 export function useCards(scenarioId: string) {
@@ -7,12 +8,16 @@ export function useCards(scenarioId: string) {
   const [loading, setLoading] = useState(true)
 
   const fetch = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('cards')
       .select('*')
       .eq('scenario_id', scenarioId)
       .order('created_at', { ascending: true })
-    if (data) setCards(data)
+    if (error) {
+      showToast('カードの取得に失敗しました')
+      return
+    }
+    setCards(data)
     setLoading(false)
   }, [scenarioId])
 
@@ -54,7 +59,7 @@ export function useCards(scenarioId: string) {
   }, [scenarioId])
 
   const create = async (card: Partial<Card>) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('cards')
       .insert({
         scenario_id: scenarioId,
@@ -70,11 +75,16 @@ export function useCards(scenarioId: string) {
       })
       .select()
       .single()
+    if (error) {
+      showToast('カードの作成に失敗しました')
+      return null
+    }
     return data
   }
 
   const update = async (id: string, updates: Partial<Card>) => {
-    await supabase.from('cards').update(updates).eq('id', id)
+    const { error } = await supabase.from('cards').update(updates).eq('id', id)
+    if (error) showToast('カードの更新に失敗しました')
   }
 
   const updateStatus = async (id: string, status: CardStatus, confirmedBy?: string) => {
@@ -84,15 +94,18 @@ export function useCards(scenarioId: string) {
     } else if (status !== 'confirmed') {
       updates.confirmed_by = null
     }
-    await supabase.from('cards').update(updates).eq('id', id)
+    const { error } = await supabase.from('cards').update(updates).eq('id', id)
+    if (error) showToast('ステータスの変更に失敗しました')
   }
 
   const updatePosition = async (id: string, pos_x: number, pos_y: number) => {
-    await supabase.from('cards').update({ pos_x, pos_y }).eq('id', id)
+    const { error } = await supabase.from('cards').update({ pos_x, pos_y }).eq('id', id)
+    if (error) showToast('位置の更新に失敗しました')
   }
 
   const remove = async (id: string) => {
-    await supabase.from('cards').delete().eq('id', id)
+    const { error } = await supabase.from('cards').delete().eq('id', id)
+    if (error) showToast('カードの削除に失敗しました')
   }
 
   return { cards, loading, create, update, updateStatus, updatePosition, remove, refetch: fetch }

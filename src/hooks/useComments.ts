@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { showToast } from '../lib/toast'
 import type { Comment } from '../types'
 
 export function useComments(cardId: string | null) {
@@ -9,12 +10,17 @@ export function useComments(cardId: string | null) {
   const fetch = useCallback(async () => {
     if (!cardId) { setComments([]); return }
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('comments')
       .select('*')
       .eq('card_id', cardId)
       .order('created_at', { ascending: true })
-    if (data) setComments(data)
+    if (error) {
+      showToast('コメントの取得に失敗しました')
+      setLoading(false)
+      return
+    }
+    setComments(data)
     setLoading(false)
   }, [cardId])
 
@@ -59,9 +65,10 @@ export function useComments(cardId: string | null) {
 
   const create = async (body: string, author: string) => {
     if (!cardId) return
-    await supabase
+    const { error } = await supabase
       .from('comments')
       .insert({ card_id: cardId, author, body })
+    if (error) showToast('コメントの送信に失敗しました')
   }
 
   return { comments, loading, create, refetch: fetch }

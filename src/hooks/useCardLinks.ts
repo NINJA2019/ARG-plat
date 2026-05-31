@@ -1,16 +1,21 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { showToast } from '../lib/toast'
 import type { CardLink } from '../types'
 
 export function useCardLinks(scenarioId: string) {
   const [links, setLinks] = useState<CardLink[]>([])
 
   const fetch = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('card_links')
       .select('*')
       .eq('scenario_id', scenarioId)
-    if (data) setLinks(data)
+    if (error) {
+      showToast('関係線の取得に失敗しました')
+      return
+    }
+    setLinks(data)
   }, [scenarioId])
 
   useEffect(() => { fetch() }, [fetch])
@@ -51,19 +56,18 @@ export function useCardLinks(scenarioId: string) {
   }, [scenarioId])
 
   const create = async (cardA: string, cardB: string) => {
-    const exists = links.some(
-      l =>
-        (l.card_a === cardA && l.card_b === cardB) ||
-        (l.card_a === cardB && l.card_b === cardA),
-    )
-    if (exists) return
-    await supabase
+    const { error } = await supabase
       .from('card_links')
       .insert({ scenario_id: scenarioId, card_a: cardA, card_b: cardB })
+    if (error) {
+      if (error.code === '23505') return // unique constraint — already linked
+      showToast('関係線の作成に失敗しました')
+    }
   }
 
   const remove = async (id: string) => {
-    await supabase.from('card_links').delete().eq('id', id)
+    const { error } = await supabase.from('card_links').delete().eq('id', id)
+    if (error) showToast('関係線の削除に失敗しました')
   }
 
   return { links, create, remove, refetch: fetch }

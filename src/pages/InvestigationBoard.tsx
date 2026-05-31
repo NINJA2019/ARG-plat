@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { showToast } from '../lib/toast'
 import { useCards } from '../hooks/useCards'
 import { useCardLinks } from '../hooks/useCardLinks'
 import { CorkBoard } from '../components/CorkBoard'
@@ -20,7 +21,7 @@ export function InvestigationBoard() {
   const navigate = useNavigate()
 
   const { cards, create, update, updateStatus, updatePosition, remove } = useCards(scenarioId!)
-  const { links, create: createLink, remove: removeLink } = useCardLinks(scenarioId!)
+  const { links, create: createLink } = useCardLinks(scenarioId!)
 
   const [participantName, setParticipantName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -84,11 +85,13 @@ export function InvestigationBoard() {
   const handleDelete = async () => {
     if (!selectedCard) return
     if (!confirm('このカードを削除しますか？')) return
-    const relatedLinks = links.filter(
-      l => l.card_a === selectedCard.id || l.card_b === selectedCard.id,
-    )
-    for (const link of relatedLinks) {
-      await removeLink(link.id)
+    const { error: linkError } = await supabase
+      .from('card_links')
+      .delete()
+      .or(`card_a.eq.${selectedCard.id},card_b.eq.${selectedCard.id}`)
+    if (linkError) {
+      showToast('関係線の削除に失敗しました')
+      return
     }
     await remove(selectedCard.id)
     setSelectedCard(null)
