@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { useRealtime } from './useRealtime'
 import type { Card, CardStatus } from '../types'
 
 export function useCards(scenarioId: string) {
@@ -17,10 +16,42 @@ export function useCards(scenarioId: string) {
     setLoading(false)
   }, [scenarioId])
 
-  useRealtime('cards', { column: 'scenario_id', value: scenarioId }, fetch)
+  useEffect(() => { fetch() }, [fetch])
 
-  // Initial fetch
-  useState(() => { fetch() })
+  useEffect(() => {
+    const channel = supabase
+      .channel(`cards-${scenarioId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cards',
+          filter: `scenario_id=eq.${scenarioId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newCard = payload.new as Card
+            setCards(prev =>
+              prev.some(c => c.id === newCard.id) ? prev : [...prev, newCard],
+            )
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as Card
+            setCards(prev =>
+              prev.map(c => (c.id === updated.id ? updated : c)),
+            )
+          } else if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as { id: string }
+            setCards(prev => prev.filter(c => c.id !== deleted.id))
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [scenarioId])
 
   const create = async (card: Partial<Card>) => {
     const { data } = await supabase
